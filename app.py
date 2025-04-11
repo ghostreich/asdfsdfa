@@ -2,16 +2,14 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
-import streamlit.components.v1 as components
-from urllib.parse import urlparse, parse_qs
 
-# ✅ 반드시 첫 번째 Streamlit 명령어
+# ✅ 페이지 설정은 최상단에
 st.set_page_config(page_title="마인크래프트 건축물 기록", layout="centered")
 
-# CSV 파일 경로 설정
+# CSV 파일 경로
 CSV_FILE = "buildings.csv"
 
-# CSV 파일이 없으면 생성
+# CSV 초기화
 def initialize_csv():
     if not os.path.exists(CSV_FILE):
         df = pd.DataFrame(columns=["이름", "높이", "넓이", "건설 날짜", "만든 사람", "링크"])
@@ -23,35 +21,38 @@ def load_data():
 def save_data(df):
     df.to_csv(CSV_FILE, index=False, encoding="utf-8-sig")
 
-# URL 파라미터에서 모드 확인
-query_params = st.query_params
-mode = query_params.get("mode", ["edit"])[0]
-readonly = mode == "view"
+# ✅ 모드 선택 및 권한 관리
+st.sidebar.title("🔐 모드 선택")
+mode = st.sidebar.selectbox("앱 모드", ["보기 전용", "관리자 모드"])
+readonly = (mode == "보기 전용")
 
-# 페이지 제목
+if not readonly:
+    pw = st.sidebar.text_input("비밀번호 입력", type="password")
+    if pw != "admin1234":
+        st.sidebar.warning("비밀번호가 틀렸습니다. 보기 전용 모드로 전환됩니다.")
+        readonly = True
+
+# 타이틀
 st.title("🏗️ 마인크래프트 건축물 기록")
 if readonly:
     st.info("🔒 현재는 보기 전용 모드입니다. 건축물을 추가하거나 삭제할 수 없습니다.")
 
-# 데이터 초기화
+# 데이터 초기화 및 불러오기
 initialize_csv()
 df = load_data()
 
-# 탭 설정
+# 탭 선택
 탭 = st.radio("메뉴 선택", ["건축물 목록 보기", "건축물 추가하기", "건축물 삭제하기"], horizontal=True)
 
-# 정렬 기능 변수
-df_sorted = df.copy()
-
-# --- 목록 보기 탭 ---
+# 목록 보기 탭
 if 탭 == "건축물 목록 보기":
     st.subheader("📋 건축물 목록")
 
     정렬기준 = st.selectbox("정렬 기준을 선택하세요", ["이름", "높이", "넓이", "건설 날짜", "만든 사람"], index=0)
     정렬방식 = st.radio("정렬 방식", ["오름차순", "내림차순"], horizontal=True)
-
     오름차순 = True if 정렬방식 == "오름차순" else False
 
+    df_sorted = df.copy()
     try:
         if 정렬기준 in ["높이", "넓이"]:
             df_sorted[정렬기준] = pd.to_numeric(df_sorted[정렬기준], errors='coerce')
@@ -67,7 +68,7 @@ if 탭 == "건축물 목록 보기":
     else:
         st.dataframe(df_sorted, use_container_width=True, hide_index=True)
 
-# --- 추가하기 탭 ---
+# 추가하기 탭
 elif 탭 == "건축물 추가하기":
     st.subheader("➕ 건축물 추가")
 
@@ -93,7 +94,7 @@ elif 탭 == "건축물 추가하기":
             else:
                 st.warning("⚠️ 이름과 만든 사람은 반드시 입력해야 합니다.")
 
-# --- 삭제하기 탭 ---
+# 삭제하기 탭
 elif 탭 == "건축물 삭제하기":
     st.subheader("❌ 건축물 삭제")
 
